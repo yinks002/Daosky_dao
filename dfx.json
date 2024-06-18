@@ -1,0 +1,26 @@
+{
+  "canisters": {
+    "DAOSKY_backend": {
+      "main": "src/DAOSKY_backend/main.mo",
+      "type": "motoko"
+    },
+    "DAOSKY_frontend": {
+      "dependencies": [
+        "DAOSKY_backend"
+      ],
+      "source": [
+        "src/DAOSKY_frontend/dist"
+      ],
+      "type": "assets",
+      "workspace": "DAOSKY_frontend"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "output_env_file": ".env",
+  "version": 1
+}
