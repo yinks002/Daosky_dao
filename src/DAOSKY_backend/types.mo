@@ -24,6 +24,8 @@ module{
     };
     public type Proposal = {
         id: Int;
+        title: Text;
+        description: Text;
         state: ProposalState;
         voters: [Principal];
         proposer: Principal;

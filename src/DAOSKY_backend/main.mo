@@ -15,6 +15,8 @@ import Blob "mo:base/Blob";
 import HashMap "mo:base/HashMap";
 import Int "mo:base/Int";
 import Buffer "mo:base/Buffer";
+import Result "mo:base/Result";
+import Bool "mo:base/Bool";
 
 
 
@@ -25,6 +27,7 @@ actor Daosky{
 
   type Dao = Types.Dao;
   type DaoPayload = Types.DaoPayload;
+  type Proposal= Types.Proposal;
  let dao = HashMap.HashMap<Int, Dao>(0,Int.equal, Int.hash);
 
   public shared({caller}) func createDao(payload : DaoPayload) :async Int{
@@ -72,6 +75,157 @@ actor Daosky{
         }
     }
 };
+
+public shared({caller}) func voteProposal(daoId: Int, proposalId: Int, vote: Bool): async Text {
+    let oldDao: ?Dao = dao.get(daoId);
+    switch (oldDao) {
+        case (null) { "DAO doesn't exist" };
+        case (?currentDao) {
+            switch (Array.find<Proposal>(currentDao.Proposals, func(p) { p.id == proposalId })) {
+                case (null) { "Proposal doesn't exist in this DAO" };
+                case (?proposal) {
+                    let voters = Buffer.fromArray<Principal>(proposal.voters);
+                    voters.add(caller);
+                    let newProposal :Proposal = {
+                      id= proposal.id;
+                      title=proposal.title;
+                      description=proposal.description;
+                      state=  proposal.state;
+                      voters=Buffer.toArray(voters);
+                      proposer= proposal.proposer;
+                      voteCount= proposal.voteCount;
+                      createdAt=  proposal.createdAt;
+                      executed =proposal.executed;
+                    };
+
+                    let propIndex= await getProposalIndex(daoId, proposalId);
+                     
+                    let newprops=Buffer.fromArray<Proposal>(currentDao.Proposals);
+                    newprops.put(propIndex, newProposal);
+
+  
+                     let updatedDao: Dao = {
+                        name = currentDao.name;
+                        subject = currentDao.subject;
+                        Delegates = currentDao.Delegates;
+                        logo = currentDao.logo;
+                        delegatesCount = currentDao.delegatesCount;
+                        Proposals = Buffer.toArray(newprops);
+                        createdAt = currentDao.createdAt;
+                        creator = currentDao.creator;
+                    };
+                    dao.put(daoId, updatedDao); 
+                    
+                    // Perform the voting logic here
+                    return "Vote submitted successfully";
+                     
+                    
+                };
+                
+            }
+        };
+    }
+};
+
+// public shared({caller}) func voteProposal(daoId: Int, proposalId: Int, vote: Bool): async Text {
+//     let oldDao: ?Dao = dao.get(daoId);
+//     switch (oldDao) {
+//         case (null) { "DAO doesn't exist" };
+//         case (?currentDao) {
+//             let delegate = Array.find<Principal>(currentDao.Delegates, func(x) { x == caller });
+//             switch (delegate) {
+//                 case (null) { "You are not a delegate in this DAO" };
+//                 case (?_) {
+//                     var proposalIndex = -1;
+//                     for (i in Iter.range(0, Array.size(currentDao.Proposals) - 1)) {
+//                         if (currentDao.Proposals[i].id == proposalId) {
+//                             proposalIndex := i;
+//                             return "Vote submitted successfully";
+//                         }
+//                     };
+//                     return "Proposal doesn't exist in this DAO";
+//                 };
+//             }
+//         };
+//     }
+// };
+public func getProposalIndex(daoId: Int, proposalId: Int): async Nat {
+    let oldDao: ?Dao = dao.get(daoId);
+    switch (oldDao) {
+        case (null) { 8 };
+        case (?currentDao) {
+            var index = 0;
+            for (i in Iter.range(0, Array.size(currentDao.Proposals) - 1)) {
+                if (currentDao.Proposals[i].id == proposalId) {
+                    index := i;
+                }
+            };
+            index;
+        };
+    }
+};
+  public query func getProposal(daoId: Int, proposalId: Int): async ?Proposal {
+    let oldDao: ?Dao = dao.get(daoId);
+    switch (oldDao) {
+        case (null) { null };
+        case (?currentDao) {
+            let proposal = Array.find<Proposal>(currentDao.Proposals, func(p) { p.id == proposalId });
+            proposal;
+        };
+    }
+};
+  public shared({caller}) func createProposal(daoId: Int, title: Text, description: Text): async Text{
+    let oldDao: ?Dao = dao.get(daoId);
+    switch(oldDao){
+      case(null) "Dao doesnt exist";
+      case(?currentDao){
+        if (Array.find<Principal>(currentDao.Delegates, func(x) { x == caller }) == null) {
+                return "You are not a delegate in this dao";
+        }else{
+          let idd = await RandomNum();
+          let newproposal: Proposal = {
+            id = idd;
+            title = title;
+            description = description;
+            state = #open;
+            voters = [];
+            proposer = caller;
+            voteCount = 0;
+            createdAt = Time.now();
+            executed = null;
+          };
+
+          let updateProposer = Buffer.fromArray<Proposal>(currentDao.Proposals);
+          updateProposer.add(newproposal);
+          let updatedDao: Dao = {
+            name = currentDao.name;
+            subject = currentDao.subject;
+            Delegates = currentDao.Delegates;
+            logo = currentDao.logo;
+            delegatesCount = currentDao.delegatesCount;
+            Proposals = Buffer.toArray(updateProposer);
+            createdAt = currentDao.createdAt;
+            creator = currentDao.creator;
+          };
+          dao.put(daoId, updatedDao);
+          return "ik"
+        };
+          return "okay"
+        
+      };
+
+    }
+  };
+ 
+  public query func getProposalsInDao(id : Int):async [Proposal]{
+    let oldDao: ?Dao = dao.get(id);
+    switch(oldDao){
+      case(null){[]};
+      case(?currentDao){
+        return currentDao.Proposals;
+      };
+    }
+  };
   public query func getAllDao(): async [Dao]{
     Iter.toArray(dao.vals());
   };
