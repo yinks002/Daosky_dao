@@ -10,7 +10,7 @@ module{
     public type Dao = {
         name : Text;
         subject : Text;
-        Delegates: [Principal];
+        Delegates: [Member];
         logo : Text;
         delegatesCount: Nat;
         Proposals: [Proposal];
@@ -32,6 +32,10 @@ module{
         voteCount: Int;
         createdAt: Time.Time;
         executed : ?Time.Time;
+    };
+    public type Member = {
+        id: Principal;
+        tokenBalace: Nat
     };
     public type ProposalState = {
         #open;

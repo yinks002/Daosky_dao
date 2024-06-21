@@ -71,7 +71,7 @@ actor Daosky{
                 let delegates = Buffer.fromArray<Member>(currentDao.Delegates);
                 delegates.add({
                   id = caller;
-                  tokenBalace = 1000;
+                  Token= 1000;
                 });
                 let ArrayDelegates = Buffer.toArray<Member>(delegates);
                 let updatedDao: Dao = {
