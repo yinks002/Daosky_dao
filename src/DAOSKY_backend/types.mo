@@ -5,17 +5,21 @@ import Nat "mo:base/Nat";
 import Principal "mo:base/Principal";
 import Time "mo:base/Time";
 import Int "mo:base/Int";
+import Result "mo:base/Result";
 
 module{
+
+    public type Result<Ok, Err> = Result.Result<Ok, Err>;
     public type Dao = {
         name : Text;
         subject : Text;
         Delegates: [Member];
         logo : Text;
-        delegatesCount: Nat;
+        delegatesCount: Int;
         Proposals: [Proposal];
         createdAt : Int;
         creator: Principal;
+        status: DaoState;
     };
     public type DaoPayload = {
         name: Text;
@@ -35,11 +39,16 @@ module{
     };
     public type Member = {
         id: Principal;
-        tokenBalace: Nat
+        amount_e8s: Nat
     };
     public type ProposalState = {
         #open;
         #suceeded;
         #rejected;
-    }
+    };
+    public type DaoState = {
+        #open;
+        #priv;
+        #closed;
+    };
 };
