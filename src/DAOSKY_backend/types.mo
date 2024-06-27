@@ -25,6 +25,7 @@ module{
         name: Text;
         subject: Text;
         logo: Text;
+        status: DaoState;
     };
     public type Proposal = {
         id: Int;

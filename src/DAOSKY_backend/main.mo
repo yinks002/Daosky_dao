@@ -78,7 +78,7 @@ actor Daosky{
                     Proposals = currentDao.Proposals;
                     createdAt = currentDao.createdAt;
                     creator = currentDao.creator;
-                    status = currentDao.status
+                    status = currentDao.status;
                 };
                 dao.put(daoId, updatedDao);
                 "You have left the DAO";
@@ -86,38 +86,113 @@ actor Daosky{
         };
     }
 };
- public shared({caller}) func joinDao(id: Int): async Text {
+public shared({caller}) func joinDao(id: Int): async Text {
     let oldDao: ?Dao = dao.get(id);
     
     switch (oldDao) {
         case (null) return "Dao doesn't exist";
         case (?currentDao) {
-            let call = Array.find<Member>(currentDao.Delegates, func(x) { x.id == caller });
-            D.print(debug_show(call));
-            if (Array.find<Member>(currentDao.Delegates, func(x) { x.id == caller }) != null) {
-                return "Error: Address is already a delegate in this DAO";
+            if (currentDao.status != #open) {
+                return "Cannot join a non-public DAO";
             } else {
-                let delegates = Buffer.fromArray<Member>(currentDao.Delegates);
-                delegates.add({
-                  id = caller;
-                  amount_e8s = 5;
-                });
-                let ArrayDelegates = Buffer.toArray<Member>(delegates);
-                let updatedDao: Dao = {
-                    name = currentDao.name;
-                    subject = currentDao.subject;
-                    Delegates = ArrayDelegates;
-                    logo = currentDao.logo;
-                    delegatesCount = currentDao.delegatesCount;
-                    Proposals = [];
-                    createdAt = currentDao.createdAt;
-                    creator = currentDao.creator;
-                    status = currentDao.status
-                };
-                dao.put(id, updatedDao);
-                "Dao Joined";
+                let call = Array.find<Member>(currentDao.Delegates, func(x) { x.id == caller });
+                D.print(debug_show(call));
+                if (Array.find<Member>(currentDao.Delegates, func(x) { x.id == caller }) != null) {
+                    return "Error: Address is already a delegate in this DAO";
+                } else {
+                    let delegates = Buffer.fromArray<Member>(currentDao.Delegates);
+                    delegates.add({
+                      id = caller;
+                      amount_e8s = 1000;
+                    });
+                    let ArrayDelegates = Buffer.toArray<Member>(delegates);
+                    let updatedDao: Dao = {
+                        name = currentDao.name;
+                        subject = currentDao.subject;
+                        Delegates = ArrayDelegates;
+                        logo = currentDao.logo;
+                        delegatesCount = currentDao.delegatesCount;
+                        Proposals = [];
+                        createdAt = currentDao.createdAt;
+                        creator = currentDao.creator;
+                        status = currentDao.status;
+                    };
+                    dao.put(id, updatedDao);
+                    "Dao Joined";
+                }
             }
         }
+    }
+};
+//  public shared({caller}) func joinDao(id: Int): async Text {
+//     let oldDao: ?Dao = dao.get(id);
+    
+//     switch (oldDao) {
+//         case (null) return "Dao doesn't exist";
+//         case (?currentDao) {
+//             let call = Array.find<Member>(currentDao.Delegates, func(x) { x.id == caller });
+//             D.print(debug_show(call));
+//             if (Array.find<Member>(currentDao.Delegates, func(x) { x.id == caller }) != null) {
+//                 return "Error: Address is already a delegate in this DAO";
+//             } else {
+//                 let delegates = Buffer.fromArray<Member>(currentDao.Delegates);
+//                 delegates.add({
+//                   id = caller;
+//                   amount_e8s = 5;
+//                 });
+//                 let ArrayDelegates = Buffer.toArray<Member>(delegates);
+//                 let updatedDao: Dao = {
+//                     name = currentDao.name;
+//                     subject = currentDao.subject;
+//                     Delegates = ArrayDelegates;
+//                     logo = currentDao.logo;
+//                     delegatesCount = currentDao.delegatesCount;
+//                     Proposals = [];
+//                     createdAt = currentDao.createdAt;
+//                     creator = currentDao.creator;
+//                     status = currentDao.status
+//                 };
+//                 dao.put(id, updatedDao);
+//                 "Dao Joined";
+//             }
+//         }
+//     }
+// };
+public shared({caller}) func addCallerToPrivateDao(daoId: Int, callerToAdd: Principal): async Text {
+    let oldDao: ?Dao = dao.get(daoId);
+    switch (oldDao) {
+        case (null) { "DAO doesn't exist" };
+        case (?currentDao) {
+            if (currentDao.creator != caller) {
+                return "Only the creator of the DAO can add a caller";
+            } else if (currentDao.status != #priv and currentDao.status != #open){
+                return "The DAO is closed";
+            } else {
+                let existingCaller = Array.find<Member>(currentDao.Delegates, func(x) { x.id == callerToAdd });
+                if (existingCaller != null) {
+                    return "Caller is already a delegate in this DAO";
+                } else {
+                    let newDelegates = Buffer.fromArray<Member>(currentDao.Delegates);
+                    newDelegates.add({
+                        id = callerToAdd;
+                        amount_e8s = 5; // Set the initial token balance for the new caller
+                    });
+                    let updatedDao: Dao = {
+                        name = currentDao.name;
+                        subject = currentDao.subject;
+                        Delegates = Buffer.toArray(newDelegates);
+                        logo = currentDao.logo;
+                        delegatesCount = currentDao.delegatesCount + 1; // Increase the count of delegates
+                        Proposals = currentDao.Proposals;
+                        createdAt = currentDao.createdAt;
+                        creator = currentDao.creator;
+                        status = currentDao.status;
+                    };
+                    dao.put(daoId, updatedDao);
+                    "Caller added to the DAO";
+                }
+            }
+        };
     }
 };
 //   public shared({caller}) func mintToken(daoId: Int): async Text {
@@ -168,10 +243,17 @@ public shared({caller}) func voteProposal(daoId: Int, proposalId: Int, vote: Boo
             switch (Array.find<Proposal>(currentDao.Proposals, func(p) { p.id == proposalId })) {
                 case (null) { "Proposal doesn't exist in this DAO" };
                 case (?proposal) {
-                  let hasvoted= Array.find<Principal>(proposal.voters, func(x) { x == caller });
-                   if(hasvoted != null){
-                    return "caller already voted";
+                //   let hasvoted= Array.find<Principal>(proposal.voters, func(x) { x == caller });
+                //    if(hasvoted != null){
+                //     return "caller already voted";
+                //    };
+                   if(proposal.state != #open){
+                    return "The proposal is not open for voting"
                    };
+                   let hasExe = await checkAndExecuteProposal(daoId, proposalId);
+                   if(hasExe == "Proposal executed successfully"){
+                    return hasExe;
+                   }; 
                    let votingPower = switch (Array.find<Member>(currentDao.Delegates, func(member) { member.id == caller })) {
                         case (null) { 0 }; // Default to 0 if the member is not found
                         case (?foundMember) { foundMember.amount_e8s };
@@ -187,17 +269,24 @@ public shared({caller}) func voteProposal(daoId: Int, proposalId: Int, vote: Boo
 
                     // let newVoteCount = proposal.voteCount + voteMultiplier;
                     let voters = Buffer.fromArray<Principal>(proposal.voters);
+                    let finalVote = proposal.voteCount + finalVoteCount;
                     voters.add(caller);
                     let newProposal :Proposal = {
                       id= proposal.id;
                       title=proposal.title;
                       description=proposal.description;
-                      state=  proposal.state;
+                      state =  if(finalVote > 100){
+                        #suceeded
+                      }else if (finalVote < -100){
+                        #rejected
+                      }else{
+                        #open
+                      };
                       voters=Buffer.toArray(voters);
                       proposer= proposal.proposer;
-                      voteCount= proposal.voteCount + finalVoteCount;
+                      voteCount= finalVote;
                       createdAt=  proposal.createdAt;
-                      executed =proposal.executed;
+                      executed =if (finalVote > 100 or finalVote < 100) { ?Time.now() } else { proposal.executed };
                     };
 
                     let propIndex= await getProposalIndex(daoId, proposalId);
@@ -230,6 +319,52 @@ public shared({caller}) func voteProposal(daoId: Int, proposalId: Int, vote: Boo
     }
 };
 
+public shared({caller}) func checkAndExecuteProposal(daoId: Int, proposalId: Int): async Text {
+    let oldDao: ?Dao = dao.get(daoId);
+    switch (oldDao) {
+        case (null) { "DAO doesn't exist" };
+        case (?currentDao) {
+            switch (Array.find<Proposal>(currentDao.Proposals, func(p) { p.id == proposalId })) {
+                case (null) { "Proposal doesn't exist in this DAO" };
+                case (?proposal) {
+                    if (proposal.state != #open) {
+                        return "The proposal is not open for execution";
+                    } else if (proposal.voteCount > 100) {
+                        let executedProposal: Proposal = {
+                            id = proposal.id;
+                            title = proposal.title;
+                            description = proposal.description;
+                            state = #suceeded;
+                            voters = proposal.voters;
+                            proposer = proposal.proposer;
+                            voteCount = proposal.voteCount;
+                            createdAt = proposal.createdAt;
+                            executed = ?Time.now();
+                        };
+                        let propIndex = await getProposalIndex(daoId, proposalId);
+                        let newProps = Buffer.fromArray<Proposal>(currentDao.Proposals);
+                        newProps.put(propIndex, executedProposal);
+                        let updatedDao: Dao = {
+                            name = currentDao.name;
+                            subject = currentDao.subject;
+                            Delegates = currentDao.Delegates;
+                            logo = currentDao.logo;
+                            delegatesCount = currentDao.delegatesCount;
+                            Proposals = Buffer.toArray(newProps);
+                            createdAt = currentDao.createdAt;
+                            creator = currentDao.creator;
+                            status = currentDao.status;
+                        };
+                        dao.put(daoId, updatedDao);
+                        "Proposal executed successfully";
+                    } else {
+                        return "Vote count is not sufficient for execution";
+                    }
+                };
+            }
+        };
+    }
+};
 
 public shared ({caller}) func mintToken(daoId: Int, Amount: Nat): async Text {
     let oldDao: ?Dao = dao.get(daoId);
@@ -488,7 +623,7 @@ public shared({caller}) func getMemberIndex(daoId: Int): async Nat {
       createdAt = 3345;
       creator = caller;
       you = 23;
-      status = #open
+      status = payload.status
   };
     dao.put(id, updatedDao);
     "Dao updated successfully";
