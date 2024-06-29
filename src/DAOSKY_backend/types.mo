@@ -1,5 +1,3 @@
-import D "mo:base/Debug";
-import Hash "mo:base/Hash";
 import Text "mo:base/Text";
 import Nat "mo:base/Nat";
 import Principal "mo:base/Principal";
@@ -53,3 +51,4 @@ module{
         #closed;
     };
 };
+// 3344151591156365256958225764617588802559273875383876880421060011188658634752
