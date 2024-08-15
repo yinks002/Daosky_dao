@@ -15,6 +15,7 @@ import Result "mo:base/Result";
 import Bool "mo:base/Bool";
 // import Cycles "mo:base/ExperimentalCycles";
 import Text "mo:base/Text";
+import None "mo:base/None";
 
 
 
@@ -23,6 +24,19 @@ import Text "mo:base/Text";
 
 actor Daosky{
   var count= 1.0;
+    var counter  = 1;
+    public query func get() : async Nat {
+    counter;
+  };
+   public func inc() : async () {
+    counter += 1;
+  };
+   public func add(n : Nat) : async () {
+    counter += n;
+  };
+  public shared({caller}) func getPrincipalId(): async Principal{
+    return caller;
+  };
   // type Token = Token.Token;
 
   type Dao = Types.Dao;
@@ -662,12 +676,12 @@ public shared({caller}) func getMemberIndex(daoId: Int): async Nat {
         }
     };
  //output the proposals in a dao
-  public query func getProposalsInDao(id : Int):async Result<[Proposal],Text>{
+  public query func getProposalsInDao(id : Int):async [Proposal]{
     let oldDao: ?Dao = dao.get(id);
     switch(oldDao){
-      case(null){ #err("No proposals in dao")};
+      case( null ){ [] };
       case(?currentDao){
-        return #ok(currentDao.Proposals);
+        return currentDao.Proposals;
       };
     }
   };
