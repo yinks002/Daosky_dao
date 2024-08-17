@@ -1,0 +1,106 @@
+type Time = int;
+type Result_2 = 
+ variant {
+   err;
+   ok: int;
+ };
+type Result_1 = 
+ variant {
+   err: text;
+   ok: opt Proposal;
+ };
+type Result = 
+ variant {
+   err: text;
+   ok: text;
+ };
+type Proposal__1 = 
+ record {
+   createdAt: Time;
+   description: text;
+   executed: opt Time;
+   id: int;
+   proposer: principal;
+   state: ProposalState;
+   title: text;
+   voteCount: int;
+   voters: vec principal;
+ };
+type ProposalState = 
+ variant {
+   open;
+   rejected;
+   suceeded;
+ };
+type Proposal = 
+ record {
+   createdAt: Time;
+   description: text;
+   executed: opt Time;
+   id: int;
+   proposer: principal;
+   state: ProposalState;
+   title: text;
+   voteCount: int;
+   voters: vec principal;
+ };
+type Member = 
+ record {
+   amount_e8s: nat;
+   id: principal;
+ };
+type DaoState__1 = 
+ variant {
+   closed;
+   open;
+   priv;
+ };
+type DaoState = 
+ variant {
+   closed;
+   open;
+   priv;
+ };
+type DaoPayload = 
+ record {
+   logo: text;
+   name: text;
+   status: DaoState;
+   subject: text;
+ };
+type Dao = 
+ record {
+   Delegates: vec Member;
+   Proposals: vec Proposal__1;
+   createdAt: int;
+   creator: principal;
+   delegatesCount: int;
+   logo: text;
+   name: text;
+   status: DaoState;
+   subject: text;
+ };
+service : {
+  add: (nat) -> ();
+  addCallerToPrivateDao: (int, principal) -> (Result);
+  changeDaoStatus: (int, DaoState__1) -> (Result);
+  checkAndExecuteProposal: (int, int) -> (text);
+  checkTokenBalanceForProposal: (int) -> (bool);
+  createDao: (DaoPayload) -> (Result_2);
+  createProposal: (int, text, text) -> (Result);
+  deleteDao: (int) -> () oneway;
+  get: () -> (nat) query;
+  getAllDao: () -> (vec Dao) query;
+  getDaoById: (int) -> (opt Dao);
+  getMemberIndex: (int) -> (nat);
+  getPrincipalId: () -> (principal);
+  getProposal: (int, int) -> (Result_1) query;
+  getProposalIndex: (int, int) -> (nat);
+  getProposalsInDao: (int) -> (vec Proposal) query;
+  inc: () -> ();
+  joinDao: (int) -> (Result);
+  leaveDao: (int) -> (Result);
+  mintToken: (int, nat) -> (Result);
+  updateDao: (int, DaoPayload) -> (text);
+  voteProposal: (int, int, bool) -> (Result);
+}
