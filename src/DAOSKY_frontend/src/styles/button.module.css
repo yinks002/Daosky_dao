@@ -53,3 +53,10 @@
   align-items: center;
   gap: 0.75rem;
 }
+
+@media screen and (max-width: 480px) {
+  .outlinedBtn,
+  .solidBtn {
+    padding: 0rem 1rem;
+  }
+}

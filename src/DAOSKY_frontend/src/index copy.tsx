@@ -1,7 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
-import { InternetIdentityProvider } from "ic-use-internet-identity";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 import { Theme } from "@radix-ui/themes";
@@ -11,11 +10,9 @@ const root = ReactDOM.createRoot(
 );
 root.render(
   <React.StrictMode>
-      <InternetIdentityProvider>
     <Theme>
       <App />
     </Theme>
-    </InternetIdentityProvider>
   </React.StrictMode>
 );
 
