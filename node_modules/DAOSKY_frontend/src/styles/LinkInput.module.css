@@ -1,0 +1,31 @@
+.text-input,
+.error-input {
+  border: 1px solid #0009321f;
+  outline: none;
+  text-align: left;
+  background-color: #ffffffe5;
+  font-family: "Inter tight";
+  font-size: 1rem;
+  border-radius: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  line-height: 1.5rem;
+  width: 100%;
+}
+
+.text-input {
+  color: #1c2024;
+}
+.error-input::placeholder,
+.text-input::placeholder {
+  font-weight: 500;
+  font-size: 0.8rem;
+  line-height: 16px;
+}
+
+.error-input::placeholder {
+  color: red;
+}
+
+.error-input {
+  border: #ff000632 1px solid;
+}

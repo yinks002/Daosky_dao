@@ -1,0 +1,43 @@
+@import "@radix-ui/colors/black-alpha.css";
+@import "@radix-ui/colors/violet.css";
+
+.SliderRoot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  user-select: none;
+  touch-action: none;
+  width: 18rem;
+  height: 20px;
+}
+
+.SliderTrack {
+  background-color: #0000330f;
+  position: relative;
+  flex-grow: 1;
+  border-radius: 9999px;
+  height: 0.5rem;
+}
+
+.SliderRange {
+  position: absolute;
+  background-color: #00a2c7;
+  border-radius: 9999px;
+  height: 100%;
+}
+
+.SliderThumb {
+  display: block;
+  width: 0.75rem;
+  height: 0.75rem;
+  background-color: white;
+  box-shadow: 0 2px 10px var(--black-a7);
+  border-radius: 10px;
+}
+.SliderThumb:hover {
+  background-color: var(--violet-3);
+}
+.SliderThumb:focus {
+  outline: none;
+  box-shadow: 0 0 0 5px var(--black-a8);
+}

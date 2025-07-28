@@ -1,0 +1,21 @@
+.active,
+.notActive {
+  padding: 0.25rem 1rem;
+
+  /* Typography/2/Regular */
+  font-family: "Inter tight";
+  font-size: 0.875rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1.25rem; /* 142.857% */
+}
+.active {
+  border: 1px solid #009ed75e;
+  border-radius: 625rem;
+  background-color: #fff;
+  font-weight: 500;
+  color: #007c9f;
+}
+.notActive {
+  color: rgba(0, 49, 62, 0.95);
+}
