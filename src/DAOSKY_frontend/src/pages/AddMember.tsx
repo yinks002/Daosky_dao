@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import AuthNavbar from "../components/ui-components/AuthNavbar";
 import RichTextEditor from "../components/functional-components/RichText";
-// import CustomInput from "../components/ui-components/CustomInput";
 
 // imported assets
 import arrowRightWhite from "../assets/icons/arrow-right-white.svg";
@@ -17,12 +16,13 @@ const AddMember = () => {
     hours: "",
   });
   const [description, setDescription] = useState<string>("");
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [formIsValid, setFormIsValid] = useState<boolean>(false);
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { value, name } = e.target;
     setFormDetails({ ...formDetails, [name]: value });
-  };
+  }
 
-  const [formIsValid, setFormIsValid] = useState<boolean>(false);
   useEffect(() => {
     if (
       description !== "" &&

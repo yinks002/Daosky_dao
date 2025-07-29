@@ -13,7 +13,7 @@ import ExecutedProposalsTab from "../components/Tabs/ProposalsTabs/ExecutedPropo
 import DefeatedProposalsTabs from "../components/Tabs/ProposalsTabs/DefeatedProposalsTabs";
 import CompletedProposalsTab from "../components/Tabs/ProposalsTabs/CompletedProposalsTab";
 
-const Proposals = () => {
+function Proposals() {
   const navigate = useNavigate();
   return (
     <section>
@@ -74,6 +74,6 @@ const Proposals = () => {
       </div>
     </section>
   );
-};
+}
 
 export default Proposals;

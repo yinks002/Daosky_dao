@@ -28,10 +28,10 @@ const EditGovernance = () => {
     }
   }, [formDetails.days, formDetails.hours]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { value, name } = e.target;
     setFormDetails({ ...formDetails, [name]: value });
-  };
+  }
   return (
     <section>
       <AuthNavbar />

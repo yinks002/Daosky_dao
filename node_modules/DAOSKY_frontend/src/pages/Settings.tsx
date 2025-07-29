@@ -1,4 +1,3 @@
-import React from "react";
 import AuthNavbar from "../components/ui-components/AuthNavbar";
 
 import styles from "../styles/Miscellaneous.module.css";
@@ -11,7 +10,7 @@ import gear from "../assets/icons/gear.svg";
 import { useNavigate } from "react-router-dom";
 import "../styles/progress.css";
 
-const Settings = () => {
+function Settings() {
   const navigate = useNavigate();
 
   return (
@@ -260,6 +259,6 @@ const Settings = () => {
       </div>
     </section>
   );
-};
+}
 
 export default Settings;

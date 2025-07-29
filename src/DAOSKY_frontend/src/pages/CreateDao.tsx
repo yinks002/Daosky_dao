@@ -1,6 +1,5 @@
 import Navbar from "../components/ui-components/Navbar";
 import styles from "../styles/button.module.css";
-import logo from "../assets/icons/logo.svg";
 import { useNavigate } from "react-router-dom";
 
 // imported assets
@@ -10,6 +9,7 @@ import arrowRightWhite from "../assets/icons/arrow-right-white.svg";
 import describeIcon from "../assets/images/describe_icon.png";
 import setupIcon from "../assets/images/setup_icon.png";
 import governanceIcon from "../assets/images/governance_icon.png";
+import logo from "../assets/icons/logo.svg";
 
 const CreateDao = () => {
   const navigate = useNavigate();

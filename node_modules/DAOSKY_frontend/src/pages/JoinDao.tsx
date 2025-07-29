@@ -4,7 +4,7 @@ import Explore from "../components/section-components/Explore";
 import PageFooter from "../components/section-components/PageFooter";
 import { Box, TextField } from "@radix-ui/themes";
 
-const JoinDao = () => {
+function JoinDao() {
   return (
     <section>
       <div className=" bg-hero-bg-image min-h-[100vh] bg-cover bg-center">
@@ -35,6 +35,6 @@ const JoinDao = () => {
       <PageFooter />
     </section>
   );
-};
+}
 
 export default JoinDao;
