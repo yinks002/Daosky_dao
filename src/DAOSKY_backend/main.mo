@@ -262,93 +262,162 @@ public shared({caller}) func addCallerToPrivateDao(daoId: Int, callerToAdd: Prin
 
 
 //lets a delegate vote on existing proposal in the dao
-public shared({caller}) func voteProposal(daoId: Int, proposalId: Int, vote: Bool): async Result<Text,Text> {
-    let oldDao: ?Dao = dao.get(daoId);
-    switch (oldDao) {
-        case (null) {  #err("DAO doesn't exist") };
-        case (?currentDao) {
-            switch (Array.find<Proposal>(currentDao.Proposals, func(p) { p.id == proposalId })) {
-                //checks if proposal exists in the dao
-                case (null) {  #err("Proposal doesn't exist in this DAO") };
-                case (?proposal) {
-                //   let hasvoted= Array.find<Principal>(proposal.voters, func(x) { x == caller });
-                //    if(hasvoted != null){
-                //     return "caller already voted";
-                //    };
-                   if(proposal.state != #open){
-                    // checks if proposal is open for voting
-                    return  #err("The proposal is not open for voting")
-                   };
-                   let hasExe = await checkAndExecuteProposal(daoId, proposalId);
-                   if(hasExe == "Proposal executed successfully"){
-                    return #ok(hasExe);
-                   }; 
-                   let votingPower = switch (Array.find<Member>(currentDao.Delegates, func(member) { member.id == caller })) {
-                        case (null) { 0 }; // Default to 0 if the member is not found
-                        case (?foundMember) { foundMember.amount_e8s };
-                    };
-                    D.print(debug_show(votingPower));
-                   // Update the vote count based on the caller's vote
-                    let voteMultiplier = if(vote == true){
-                      1;
-                    }else{
-                      -1
-                    };
-                    //multiplies the token amount of caller by 1 or -1 depending on voters decision of true or false
-                    let finalVoteCount = votingPower * voteMultiplier;
+// public shared({caller}) func voteProposal(daoId: Int, proposalId: Int, vote: Bool): async Result<Text,Text> {
+//     let oldDao: ?Dao = dao.get(daoId);
+//     switch (oldDao) {
+//         case (null) {  #err("DAO doesn't exist") };
+//         case (?currentDao) {
+//             switch (Array.find<Proposal>(currentDao.Proposals, func(p) { p.id == proposalId })) {
+//                 //checks if proposal exists in the dao
+//                 case (null) {  #err("Proposal doesn't exist in this DAO") };
+//                 case (?proposal) {
+//                 //   let hasvoted= Array.find<Principal>(proposal.voters, func(x) { x == caller });
+//                 //    if(hasvoted != null){
+//                 //     return "caller already voted";
+//                 //    };
+//                    if(proposal.state != #open){
+//                     // checks if proposal is open for voting
+//                     return  #err("The proposal is not open for voting")
+//                    };
+//                    let hasExe = await checkAndExecuteProposal(daoId, proposalId);
+//                    if(hasExe == "Proposal executed successfully"){
+//                     return #ok(hasExe);
+//                    }; 
+//                    let votingPower = switch (Array.find<Member>(currentDao.Delegates, func(member) { member.id == caller })) {
+//                         case (null) { 0 }; // Default to 0 if the member is not found
+//                         case (?foundMember) { foundMember.amount_e8s };
+//                     };
+//                     D.print(debug_show(votingPower));
+//                    // Update the vote count based on the caller's vote
+//                     let voteMultiplier = if(vote == true){
+//                       1;
+//                     }else{
+//                       -1
+//                     };
+//                     //multiplies the token amount of caller by 1 or -1 depending on voters decision of true or false
+//                     let finalVoteCount = votingPower * voteMultiplier;
 
-                    // let newVoteCount = proposal.voteCount + voteMultiplier;
-                    let voters = Buffer.fromArray<Principal>(proposal.voters);
-                    let finalVote = proposal.voteCount + finalVoteCount;
-                    voters.add(caller);
-                    let newProposal :Proposal = {
-                      id= proposal.id;
-                      title=proposal.title;
-                      description=proposal.description;
-                      //if the vote is more than 100, proposal is suceeded, if it is less than -100, proposal is rejected, if its neither, its left opened
-                      state =  if(finalVote > 100){
-                        #suceeded
-                      }else if (finalVote < -100){
-                        #rejected
-                      }else{
-                        #open
-                      };
-                      voters=Buffer.toArray(voters);
-                      proposer= proposal.proposer;
-                      voteCount= finalVote;
-                      createdAt=  proposal.createdAt;
-                      //execute proposal time if proposal is executed
-                      executed =if (finalVote > 100 or finalVote < 100) { ?Time.now() } else { proposal.executed };
-                    };
+//                     // let newVoteCount = proposal.voteCount + voteMultiplier;
+//                     let voters = Buffer.fromArray<Principal>(proposal.voters);
+//                     let finalVote = proposal.voteCount + finalVoteCount;
+//                     voters.add(caller);
+//                     let newProposal :Proposal = {
+//                       id= proposal.id;
+//                       title=proposal.title;
+//                       description=proposal.description;
+//                       //if the vote is more than 100, proposal is suceeded, if it is less than -100, proposal is rejected, if its neither, its left opened
+//                       state =  if(finalVote > 100){
+//                         #suceeded
+//                       }else if (finalVote < -100){
+//                         #rejected
+//                       }else{
+//                         #open
+//                       };
+//                       voters=Buffer.toArray(voters);
+//                       proposer= proposal.proposer;
+//                       voteCount= finalVote;
+//                       createdAt=  proposal.createdAt;
+//                       //execute proposal time if proposal is executed
+//                       executed =if (finalVote > 100 or finalVote < 100) { ?Time.now() } else { proposal.executed };
+//                     };
 
-                    let propIndex= await getProposalIndex(daoId, proposalId);
+//                     let propIndex= await getProposalIndex(daoId, proposalId);
                      
-                    let newprops=Buffer.fromArray<Proposal>(currentDao.Proposals);
-                    newprops.put(propIndex, newProposal);
+//                     let newprops=Buffer.fromArray<Proposal>(currentDao.Proposals);
+//                     newprops.put(propIndex, newProposal);
 
   
-                     let updatedDao: Dao = {
+//                      let updatedDao: Dao = {
+//                         name = currentDao.name;
+//                         subject = currentDao.subject;
+//                         Delegates = currentDao.Delegates;
+//                         logo = currentDao.logo;
+//                         delegatesCount = currentDao.delegatesCount;
+//                         Proposals = Buffer.toArray(newprops);
+//                         createdAt = currentDao.createdAt;
+//                         creator = currentDao.creator;
+//                         status = currentDao.status
+//                     };
+//                     dao.put(daoId, updatedDao); 
+                    
+//                     // Perform the voting logic here
+//                     return #ok("Vote submitted successfully");
+                     
+                    
+//                 };
+                
+//             }
+//         };
+//     }
+// };
+
+
+//prevents bug  Prevent Duplicate Voting in voteProposal
+
+
+public shared({caller}) func voteProposal(daoId: Int, proposalId: Int, vote: Bool): async Result<Text, Text> {
+    let oldDao: ?Dao = dao.get(daoId);
+    switch (oldDao) {
+        case (null) { #err("DAO doesn't exist") };
+        case (?currentDao) {
+            switch (Array.find<Proposal>(currentDao.Proposals, func(p) { p.id == proposalId })) {
+                case (null) { #err("Proposal doesn't exist in this DAO") };
+                case (?proposal) {
+                    // Check if caller has already voted
+                    if (Array.find<Principal>(proposal.voters, func(x) { x == caller }) != null) {
+                        return #err("Caller has already voted on this proposal");
+                    };
+                    if (proposal.state != #open) {
+                        return #err("The proposal is not open for voting");
+                    };
+                    let hasExe = await checkAndExecuteProposal(daoId, proposalId);
+                    if (hasExe == "Proposal executed successfully") {
+                        return #ok(hasExe);
+                    };
+                    let votingPower = switch (Array.find<Member>(currentDao.Delegates, func(member) { member.id == caller })) {
+                        case (null) { 0 };
+                        case (?foundMember) { foundMember.amount_e8s };
+                    };
+                    if (votingPower == 0) {
+                        return #err("Caller is not a delegate in this DAO");
+                    };
+                    let voteMultiplier = if (vote) { 1 } else { -1 };
+                    let finalVoteCount = proposal.voteCount + (votingPower * voteMultiplier);
+                    let voters = Buffer.fromArray<Principal>(proposal.voters);
+                    voters.add(caller);
+                    let newProposal: Proposal = {
+                        id = proposal.id;
+                        title = proposal.title;
+                        description = proposal.description;
+                        state = if (finalVoteCount > 100) { #suceeded }
+                                else if (finalVoteCount < -100) { #rejected }
+                                else { #open };
+                        voters = Buffer.toArray(voters);
+                        proposer = proposal.proposer;
+                        voteCount = finalVoteCount;
+                        createdAt = proposal.createdAt;
+                        executed = if (finalVoteCount > 100 or finalVoteCount < -100) { ?Time.now() } else { proposal.executed };
+                    };
+                    let propIndex = await getProposalIndex(daoId, proposalId);
+                    let newProps = Buffer.fromArray<Proposal>(currentDao.Proposals);
+                    newProps.put(propIndex, newProposal);
+                    let updatedDao: Dao = {
                         name = currentDao.name;
                         subject = currentDao.subject;
                         Delegates = currentDao.Delegates;
                         logo = currentDao.logo;
                         delegatesCount = currentDao.delegatesCount;
-                        Proposals = Buffer.toArray(newprops);
+                        Proposals = Buffer.toArray(newProps);
                         createdAt = currentDao.createdAt;
                         creator = currentDao.creator;
-                        status = currentDao.status
+                        status = currentDao.status;
                     };
-                    dao.put(daoId, updatedDao); 
-                    
-                    // Perform the voting logic here
-                    return #ok("Vote submitted successfully");
-                     
-                    
+                    dao.put(daoId, updatedDao);
+                    #ok("Vote submitted successfully");
                 };
-                
-            }
+            };
         };
-    }
+    };
 };
 
 public func checkAndExecuteProposal(daoId: Int, proposalId: Int): async Text {
