@@ -701,6 +701,159 @@ public shared({caller}) func getMemberIndex(daoId: Int): async Nat {
     case(?curent) ignore dao.remove(id);
   }
  };
+//create dao proposal 
+public shared({caller}) func createDaoUpdateProposal(
+    daoId: Int,
+    proposedName: Text,
+    proposedSubject: Text,
+    proposedLogo: Text,
+    proposedStatus: DaoState
+): async Result<Text, Text> {
+    let oldDao: ?Dao = dao.get(daoId);
+    switch (oldDao) {
+        case (null) { #err("DAO doesn't exist") };
+        case (?currentDao) {
+            // Check if caller is a delegate
+            let callerMember = Array.find<Member>(currentDao.Delegates, func(x) { x.id == caller });
+            switch (callerMember) {
+                case (null) { #err("You are not a delegate in this DAO") };
+                case (?member) {
+                    // Check if member has enough tokens (similar to createProposal)
+                    if (member.amount_e8s < 10) {
+                        return #err("Not enough tokens to create proposal");
+                    };
+
+                    // Create a description that includes all proposed changes
+                    let description = "Proposed DAO Update:\n" #
+                        "New Name: " # proposedName # "\n" #
+                        "New Subject: " # proposedSubject # "\n" #
+                        "New Logo: " # proposedLogo # "\n" #
+                        "New Status: " # (switch(proposedStatus) {
+                            case (#open) "Open";
+                            case (#priv) "Private";
+                            case (#closed) "Closed";
+                        });
+
+                    // Create new proposal
+                    let id = await RandomNum();
+                    let newProposal: Proposal = {
+                        id = id;
+                        title = "DAO Update Proposal";
+                        description = description;
+                        state = #open;
+                        voters = [];
+                        proposer = caller;
+                        voteCount = 0;
+                        createdAt = Time.now();
+                        executed = null;
+                    };
+
+                    // Add proposal to DAO
+                    let updateProposals = Buffer.fromArray<Proposal>(currentDao.Proposals);
+                    updateProposals.add(newProposal);
+                    let updatedDao: Dao = {
+                        name = currentDao.name;
+                        subject = currentDao.subject;
+                        Delegates = currentDao.Delegates;
+                        logo = currentDao.logo;
+                        delegatesCount = currentDao.delegatesCount;
+                        Proposals = Buffer.toArray(updateProposals);
+                        createdAt = currentDao.createdAt;
+                        creator = currentDao.creator;
+                        status = currentDao.status;
+                    };
+                    dao.put(daoId, updatedDao);
+                    #ok("DAO update proposal created successfully");
+                };
+            };
+        };
+    }
+};
+
+//execute update dao proposal 
+public shared({caller}) func executeDaoUpdateProposal(daoId: Int, proposalId: Int): async Result<Text, Text> {
+    let oldDao: ?Dao = dao.get(daoId);
+    switch (oldDao) {
+        case (null) { #err("DAO doesn't exist") };
+        case (?currentDao) {
+            let proposal = Array.find<Proposal>(currentDao.Proposals, func(p) { p.id == proposalId });
+            switch (proposal) {
+                case (null) { #err("Proposal doesn't exist") };
+                case (?prop) {
+                    if (prop.state != #suceeded) {
+                        return #err("Proposal has not succeeded");
+                    };
+                    if (prop.executed != null) {
+                        return #err("Proposal already executed");
+                    };
+
+                    // Parse the description to extract proposed changes
+                    // Note: This is a simple parsing approach; you might want to store proposed changes differently
+                    let lines = Iter.toArray(Text.split(prop.description, #char '\n'));
+                    var newName = currentDao.name;
+                    var newSubject = currentDao.subject;
+                    var newLogo = currentDao.logo;
+                    var newStatus = currentDao.status;
+
+                    for (line in lines.vals()) {
+                        if (Text.startsWith(line, #text "New Name: ")) {
+                            newName := Text.trimStart(line, #text "New Name: ");
+                        };
+                        if (Text.startsWith(line, #text "New Subject: ")) {
+                            newSubject := Text.trimStart(line, #text "New Subject: ");
+                        };
+                        if (Text.startsWith(line, #text "New Logo: ")) {
+                            newLogo := Text.trimStart(line, #text "New Logo: ");
+                        };
+                        if (Text.startsWith(line, #text "New Status: ")) {
+                            let statusText = Text.trimStart(line, #text "New Status: ");
+                            newStatus := switch (statusText) {
+                                case ("Open") #open;
+                                case ("Private") #priv;
+                                case ("Closed") #closed;
+                                case (_) currentDao.status; // Keep current status if invalid
+                            };
+                        };
+                    };
+
+                    // Update the proposal to mark as executed
+                    let updatedProposal: Proposal = {
+                        id = prop.id;
+                        title = prop.title;
+                        description = prop.description;
+                        state = #suceeded;
+                        voters = prop.voters;
+                        proposer = prop.proposer;
+                        voteCount = prop.voteCount;
+                        createdAt = prop.createdAt;
+                        executed = ?Time.now();
+                    };
+
+                    // Update the proposals array
+                    let propIndex = await getProposalIndex(daoId, proposalId);
+                    let newProposals = Buffer.fromArray<Proposal>(currentDao.Proposals);
+                    newProposals.put(propIndex, updatedProposal);
+
+                    // Update the DAO with new values
+                    let updatedDao: Dao = {
+                        name = newName;
+                        subject = newSubject;
+                        Delegates = currentDao.Delegates;
+                        logo = newLogo;
+                        delegatesCount = currentDao.delegatesCount;
+                        Proposals = Buffer.toArray(newProposals);
+                        createdAt = currentDao.createdAt;
+                        creator = currentDao.creator;
+                        status = newStatus;
+                    };
+                    dao.put(daoId, updatedDao);
+                    #ok("DAO updated successfully via proposal");
+                };
+            };
+        };
+    }
+};
+
  //updates a dao
  public shared({caller}) func updateDao(id: Int, payload: DaoPayload): async Text{
   let oldDao: ?Dao = dao.get(id);
