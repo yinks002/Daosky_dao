@@ -35,6 +35,8 @@ module{
         voteCount: Int;
         createdAt: Time.Time;
         executed : ?Time.Time;
+        stakes: [Stake]; // New field for tracking active stakes
+         comments: [Comment]; 
     };
     public type Comment = {
         commenter: Principal;
