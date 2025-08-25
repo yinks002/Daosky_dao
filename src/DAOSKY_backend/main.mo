@@ -352,7 +352,7 @@ public shared({caller}) func addCallerToPrivateDao(daoId: Int, callerToAdd: Prin
 // };
 
 
-//prevents bug  Prevent Duplicate Voting in voteProposal
+//prevents bug  Prevent Duplicate Voting in voteProposal and also add staking 
 
 
 public shared({caller}) func voteProposal(daoId: Int, proposalId: Int, vote: Bool): async Result<Text, Text> {
@@ -360,60 +360,69 @@ public shared({caller}) func voteProposal(daoId: Int, proposalId: Int, vote: Boo
     switch (oldDao) {
         case (null) { #err("DAO doesn't exist") };
         case (?currentDao) {
-            switch (Array.find<Proposal>(currentDao.Proposals, func(p) { p.id == proposalId })) {
-                case (null) { #err("Proposal doesn't exist in this DAO") };
-                case (?proposal) {
-                    // Check if caller has already voted
-                    if (Array.find<Principal>(proposal.voters, func(x) { x == caller }) != null) {
-                        return #err("Caller has already voted on this proposal");
+            let proposal = Array.find<Proposal>(currentDao.Proposals, func(p) { p.id == proposalId });
+            switch (proposal) {
+                case (null) { #err("Proposal doesn't exist") };
+                case (?prop) {
+                    if (prop.state != #open or Time.now() > prop.expiry) {
+                        return #err("Proposal is not open for voting or has expired");
                     };
-                    if (proposal.state != #open) {
-                        return #err("The proposal is not open for voting");
+                    if (Array.find<Principal>(prop.voters, func(x) { x == caller }) != null) {
+                        return #err("Caller has already voted");
                     };
-                    let hasExe = await checkAndExecuteProposal(daoId, proposalId);
-                    if (hasExe == "Proposal executed successfully") {
-                        return #ok(hasExe);
+                    let callerMember = Array.find<Member>(currentDao.Delegates, func(x) { x.id == caller });
+                    switch (callerMember) {
+                        case (null) { #err("Caller is not a delegate") };
+                        case (?member) {
+                            let stakedAmount = Array.foldLeft<Stake, Nat>(
+                                prop.stakes,
+                                0,
+                                func(acc, stake) { if (stake.memberId == caller) { acc + stake.amount } else { acc } }
+                            );
+                            let votingPower = member.amount_e8s + stakedAmount;
+                            if (votingPower == 0) {
+                                return #err("No voting power available");
+                            };
+                            let voteMultiplier = if (vote) { 1 } else { -1 };
+                            let finalVoteCount = prop.voteCount + (votingPower * voteMultiplier);
+                            let voters = Buffer.fromArray<Principal>(prop.voters);
+                            voters.add(caller);
+                            let newProposal: Proposal = {
+                                id = prop.id;
+                                title = prop.title;
+                                description = prop.description;
+                                proposalType = prop.proposalType;
+                                state = if (finalVoteCount > 100) { #suceeded }
+                                        else if (finalVoteCount < -100) { #rejected }
+                                        else { #open };
+                                voters = Buffer.toArray(voters);
+                                proposer = prop.proposer;
+                                voteCount = finalVoteCount;
+                                createdAt = prop.createdAt;
+                                executed = if (finalVoteCount > 100 or finalVoteCount < -100) { ?Time.now() } else { prop.executed };
+                                expiry = prop.expiry;
+                                comments = prop.comments;
+                                stakes = prop.stakes;
+                            };
+                            let propIndex = await getProposalIndex(daoId, proposalId);
+                            let newProposals = Buffer.fromArray<Proposal>(currentDao.Proposals);
+                            newProposals.put(propIndex, newProposal);
+                            let updatedDao: Dao = {
+                                name = currentDao.name;
+                                subject = currentDao.subject;
+                                Delegates = currentDao.Delegates;
+                                logo = currentDao.logo;
+                                delegatesCount = currentDao.delegatesCount;
+                                Proposals = Buffer.toArray(newProposals);
+                                createdAt = currentDao.createdAt;
+                                creator = currentDao.creator;
+                                status = currentDao.status;
+                                stakes = currentDao.stakes;
+                            };
+                            dao.put(daoId, updatedDao);
+                            #ok("Vote submitted successfully");
+                        };
                     };
-                    let votingPower = switch (Array.find<Member>(currentDao.Delegates, func(member) { member.id == caller })) {
-                        case (null) { 0 };
-                        case (?foundMember) { foundMember.amount_e8s };
-                    };
-                    if (votingPower == 0) {
-                        return #err("Caller is not a delegate in this DAO");
-                    };
-                    let voteMultiplier = if (vote) { 1 } else { -1 };
-                    let finalVoteCount = proposal.voteCount + (votingPower * voteMultiplier);
-                    let voters = Buffer.fromArray<Principal>(proposal.voters);
-                    voters.add(caller);
-                    let newProposal: Proposal = {
-                        id = proposal.id;
-                        title = proposal.title;
-                        description = proposal.description;
-                        state = if (finalVoteCount > 100) { #suceeded }
-                                else if (finalVoteCount < -100) { #rejected }
-                                else { #open };
-                        voters = Buffer.toArray(voters);
-                        proposer = proposal.proposer;
-                        voteCount = finalVoteCount;
-                        createdAt = proposal.createdAt;
-                        executed = if (finalVoteCount > 100 or finalVoteCount < -100) { ?Time.now() } else { proposal.executed };
-                    };
-                    let propIndex = await getProposalIndex(daoId, proposalId);
-                    let newProps = Buffer.fromArray<Proposal>(currentDao.Proposals);
-                    newProps.put(propIndex, newProposal);
-                    let updatedDao: Dao = {
-                        name = currentDao.name;
-                        subject = currentDao.subject;
-                        Delegates = currentDao.Delegates;
-                        logo = currentDao.logo;
-                        delegatesCount = currentDao.delegatesCount;
-                        Proposals = Buffer.toArray(newProps);
-                        createdAt = currentDao.createdAt;
-                        creator = currentDao.creator;
-                        status = currentDao.status;
-                    };
-                    dao.put(daoId, updatedDao);
-                    #ok("Vote submitted successfully");
                 };
             };
         };
@@ -922,6 +931,165 @@ public shared({caller}) func executeDaoUpdateProposal(daoId: Int, proposalId: In
         };
     }
 };
+
+//function to add comments 
+public shared({caller}) func addProposalComment(daoId: Int, proposalId: Int, content: Text): async Result<Text, Text> {
+    let oldDao: ?Dao = dao.get(daoId);
+    switch (oldDao) {
+        case (null) { #err("DAO doesn't exist") };
+        case (?currentDao) {
+            let proposal = Array.find<Proposal>(currentDao.Proposals, func(p) { p.id == proposalId });
+            switch (proposal) {
+                case (null) { #err("Proposal doesn't exist") };
+                case (?prop) {
+                    if (prop.state != #open) {
+                        return #err("Cannot comment on a closed proposal");
+                    };
+                    if (Text.size(content) == 0 or Text.size(content) > 500) {
+                        return #err("Comment must be between 1 and 500 characters");
+                    };
+                    let callerMember = Array.find<Member>(currentDao.Delegates, func(x) { x.id == caller });
+                    switch (callerMember) {
+                        case (null) { #err("You are not a delegate in this DAO") };
+                        case (?member) {
+                            let newComment: Comment = {
+                                commenter = caller;
+                                content = content;
+                                timestamp = Time.now();
+                            };
+                            let updatedComments = Buffer.fromArray<Comment>(prop.comments);
+                            updatedComments.add(newComment);
+                            let updatedProposal: Proposal = {
+                                id = prop.id;
+                                title = prop.title;
+                                description = prop.description;
+                                proposalType = prop.proposalType;
+                                state = prop.state;
+                                voters = prop.voters;
+                                proposer = prop.proposer;
+                                voteCount = prop.voteCount;
+                                createdAt = prop.createdAt;
+                                executed = prop.executed;
+                                expiry = prop.expiry;
+                                comments = Buffer.toArray(updatedComments);
+                            };
+                            let propIndex = await getProposalIndex(daoId, proposalId);
+                            let newProposals = Buffer.fromArray<Proposal>(currentDao.Proposals);
+                            newProposals.put(propIndex, updatedProposal);
+                            let updatedDao: Dao = {
+                                name = currentDao.name;
+                                subject = currentDao.subject;
+                                Delegates = currentDao.Delegates;
+                                logo = currentDao.logo;
+                                delegatesCount = currentDao.delegatesCount;
+                                Proposals = Buffer.toArray(newProposals);
+                                createdAt = currentDao.createdAt;
+                                creator = currentDao.creator;
+                                status = currentDao.status;
+                            };
+                            dao.put(daoId, updatedDao);
+                            #ok("Comment added successfully");
+                        };
+                    };
+                };
+            };
+        };
+    };
+};
+
+//query to retrieve comments
+public query func getProposalComments(daoId: Int, proposalId: Int): async Result<[Comment], Text> {
+    let oldDao: ?Dao = dao.get(daoId);
+    switch (oldDao) {
+        case (null) { #err("DAO doesn't exist") };
+        case (?currentDao) {
+            let proposal = Array.find<Proposal>(currentDao.Proposals, func(p) { p.id == proposalId });
+            switch (proposal) {
+                case (null) { #err("Proposal doesn't exist") };
+                case (?prop) { #ok(prop.comments) };
+            };
+        };
+    };
+};
+
+//token staking for voting power 
+public shared({caller}) func stakeTokens(daoId: Int, proposalId: Int, amount: Nat): async Result<Text, Text> {
+    let oldDao: ?Dao = dao.get(daoId);
+    switch (oldDao) {
+        case (null) { #err("DAO doesn't exist") };
+        case (?currentDao) {
+            let proposal = Array.find<Proposal>(currentDao.Proposals, func(p) { p.id == proposalId });
+            switch (proposal) {
+                case (null) { #err("Proposal doesn't exist") };
+                case (?prop) {
+                    if (prop.state != #open or Time.now() > prop.expiry) {
+                        return #err("Proposal is not open for staking");
+                    };
+                    let callerMember = Array.find<Member>(currentDao.Delegates, func(x) { x.id == caller });
+                    switch (callerMember) {
+                        case (null) { #err("You are not a delegate in this DAO") };
+                        case (?member) {
+                            if (member.amount_e8s < amount) {
+                                return #err("Insufficient tokens to stake");
+                            };
+                            let newStake: Stake = {
+                                memberId = caller;
+                                proposalId = proposalId;
+                                amount = amount;
+                                stakedAt = Time.now();
+                            };
+                            let updatedMember: Member = {
+                                id = member.id;
+                                amount_e8s = member.amount_e8s - amount;
+                            };
+                            let memberIndex = await getMemberIndex(daoId);
+                            let updatedDelegates = Buffer.fromArray<Member>(currentDao.Delegates);
+                            updatedDelegates.put(memberIndex, updatedMember);
+                            let updatedStakes = Buffer.fromArray<Stake>(currentDao.stakes);
+                            updatedStakes.add(newStake);
+                            let updatedProposalStakes = Buffer.fromArray<Stake>(prop.stakes);
+                            updatedProposalStakes.add(newStake);
+                            let updatedProposal: Proposal = {
+                                id = prop.id;
+                                title = prop.title;
+                                description = prop.description;
+                                proposalType = prop.proposalType;
+                                state = prop.state;
+                                voters = prop.voters;
+                                proposer = prop.proposer;
+                                voteCount = prop.voteCount;
+                                createdAt = prop.createdAt;
+                                executed = prop.executed;
+                                expiry = prop.expiry;
+                                comments = prop.comments;
+                                stakes = Buffer.toArray(updatedProposalStakes);
+                            };
+                            let propIndex = await getProposalIndex(daoId, proposalId);
+                            let newProposals = Buffer.fromArray<Proposal>(currentDao.Proposals);
+                            newProposals.put(propIndex, updatedProposal);
+                            let updatedDao: Dao = {
+                                name = currentDao.name;
+                                subject = currentDao.subject;
+                                Delegates = Buffer.toArray(updatedDelegates);
+                                logo = currentDao.logo;
+                                delegatesCount = currentDao.delegatesCount;
+                                Proposals = Buffer.toArray(newProposals);
+                                createdAt = currentDao.createdAt;
+                                creator = currentDao.creator;
+                                status = currentDao.status;
+                                stakes = Buffer.toArray(updatedStakes);
+                            };
+                            dao.put(daoId, updatedDao);
+                            #ok("Tokens staked successfully");
+                        };
+                    };
+                };
+            };
+        };
+    };
+};
+
+
 
  //updates a dao
  public shared({caller}) func updateDao(id: Int, payload: DaoPayload): async Text{
