@@ -36,6 +36,17 @@ module{
         createdAt: Time.Time;
         executed : ?Time.Time;
     };
+    public type Comment = {
+        commenter: Principal;
+        content: Text;
+        timestamp: Time.Time;
+    };
+public type Stake = {
+    memberId: Principal;
+    proposalId: Int;
+    amount: Nat;
+    stakedAt: Time.Time;
+};
     public type Member = {
         id: Principal;
         amount_e8s: Nat
