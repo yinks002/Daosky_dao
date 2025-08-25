@@ -848,6 +848,58 @@ public shared({caller}) func createDaoUpdateProposal(
     }
 };
 
+//release staked tokens after proposal
+public shared({caller}) func releaseStakedTokens(daoId: Int, proposalId: Int): async Result<Text, Text> {
+    let oldDao: ?Dao = dao.get(daoId);
+    switch (oldDao) {
+        case (null) { #err("DAO doesn't exist") };
+        case (?currentDao) {
+            let proposal = Array.find<Proposal>(currentDao.Proposals, func(p) { p.id == proposalId });
+            switch (proposal) {
+                case (null) { #err("Proposal doesn't exist") };
+                case (?prop) {
+                    if (prop.state == #open and Time.now() <= prop.expiry) {
+                        return #err("Proposal is still open");
+                    };
+                    let callerStakes = Array.filter<Stake>(currentDao.stakes, func(s) { s.memberId == caller and s.proposalId == proposalId });
+                    if (Array.size(callerStakes) == 0) {
+                        return #err("No stakes found for this proposal");
+                    };
+                    let totalStaked = Array.foldLeft<Stake, Nat>(callerStakes, 0, func(acc, s) { acc + s.amount });
+                    let callerMember = Array.find<Member>(currentDao.Delegates, func(x) { x.id == caller });
+                    switch (callerMember) {
+                        case (null) { #err("Caller is not a delegate") };
+                        case (?member) {
+                            let updatedMember: Member = {
+                                id = member.id;
+                                amount_e8s = member.amount_e8s + totalStaked;
+                            };
+                            let memberIndex = await getMemberIndex(daoId);
+                            let updatedDelegates = Buffer.fromArray<Member>(currentDao.Delegates);
+                            updatedDelegates.put(memberIndex, updatedMember);
+                            let updatedStakes = Array.filter<Stake>(currentDao.stakes, func(s) { s.memberId != caller or s.proposalId != proposalId });
+                            let updatedDao: Dao = {
+                                name = currentDao.name;
+                                subject = currentDao.subject;
+                                Delegates = Buffer.toArray(updatedDelegates);
+                                logo = currentDao.logo;
+                                delegatesCount = currentDao.delegatesCount;
+                                Proposals = currentDao.Proposals;
+                                createdAt = currentDao.createdAt;
+                                creator = currentDao.creator;
+                                status = currentDao.status;
+                                stakes = updatedStakes;
+                            };
+                            dao.put(daoId, updatedDao);
+                            #ok("Staked tokens released successfully");
+                        };
+                    };
+                };
+            };
+        };
+    };
+};
+
 //execute update dao proposal 
 public shared({caller}) func executeDaoUpdateProposal(daoId: Int, proposalId: Int): async Result<Text, Text> {
     let oldDao: ?Dao = dao.get(daoId);
